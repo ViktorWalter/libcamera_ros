@@ -13,11 +13,12 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
-  <depend>roscpp</depend>
   <depend>libcamera</depend>
+  <depend>cmake_modules</depend>
+  <depend>roscpp</depend>
   <depend>nodelet</depend>
   <depend>sensor_msgs</depend>
-  <depend>mrs_lib</depend>
+  <depend>std_msgs</depend>
 
   <export>
     <nodelet plugin="${prefix}/nodelets.xml" />

@@ -9,8 +9,7 @@ set(CATKIN_DEPENDENCIES
   roscpp
   nodelet
   sensor_msgs
-  libcamera
-  mrs_lib
+  std_msgs
   )
 
 set(LIBRARIES
@@ -26,9 +25,13 @@ catkin_package(
   CATKIN_DEPENDS ${CATKIN_DEPENDENCIES}
   )
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(libcamera REQUIRED libcamera)
+
 include_directories(
-  ${catkin_INCLUDE_DIRS}
   include
+  ${catkin_INCLUDE_DIRS}
+  ${libcamera_INCLUDE_DIRS}
   )
 
 
@@ -45,6 +48,7 @@ add_library(LibCameraRos
 
 target_link_libraries(LibCameraRos
   ${catkin_LIBRARIES}
+  ${libcamera_LINK_LIBRARIES}
   )
 
 ## --------------------------------------------------------------

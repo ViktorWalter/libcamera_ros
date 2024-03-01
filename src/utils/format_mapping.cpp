@@ -1,8 +1,8 @@
-#include "format_mapping.hpp"
+#include <libcamera_ros/utils/format_mapping.hpp>
 #include <cstdint>
 #include <libcamera/formats.h>
 #include <libcamera/pixel_format.h>
-#include <sensor_msgs/image_encodings.hpp>
+#include <sensor_msgs/image_encodings.h>
 #include <unordered_map>
 
 
@@ -24,8 +24,7 @@ const std::unordered_map<uint32_t, std::string> map_format_raw = {
   {cam::ARGB8888.fourcc(), ros::BGRA8},
   {cam::ABGR8888.fourcc(), ros::RGBA8},
   // YUV encodings
-  {cam::YUYV.fourcc(), ros::YUV422_YUY2},
-  {cam::UYVY.fourcc(), ros::YUV422},
+  {cam::YUYV.fourcc(), ros::YUV422},
   // Bayer encodings
   {cam::SRGGB8.fourcc(), ros::BAYER_RGGB8},
   {cam::SGRBG8.fourcc(), ros::BAYER_GRBG8},

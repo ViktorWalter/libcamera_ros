@@ -1,4 +1,4 @@
-#include "types.hpp"
+#include <libcamera_ros/utils/types.hpp>
 #include <libcamera/controls.h>
 
 
