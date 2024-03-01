@@ -1,7 +1,4 @@
 /* includes //{ */
-#include <ros/ros.h>
-#include <nodelet/nodelet.h>
-
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -48,8 +45,13 @@
 #include <libcamera_ros/utils/type_extent.hpp>
 #include <libcamera_ros/utils/types.hpp>
 
-#include <std_msgs/Header.h>
+#include <ros/ros.h>
+#include <nodelet/nodelet.h>
+#include <camera_info_manager/camera_info_manager.h>
+#include <image_transport/image_transport.h>
 
+#include <std_msgs/Header.h>
+#include <sensor_msgs/CameraInfo.h>
 //}
 
 namespace libcamera_ros
@@ -82,23 +84,53 @@ namespace libcamera_ros
     private:
       ros::NodeHandle   nh_;
 
-      libcamera::CameraManager camera_manager;
-      std::shared_ptr<libcamera::Camera> camera;
-      libcamera::Stream *stream;
-      std::shared_ptr<libcamera::FrameBufferAllocator> allocator;
-      std::vector<std::unique_ptr<libcamera::Request>> requests;
-      std::mutex request_lock;
+      libcamera::CameraManager camera_manager_;
+      std::shared_ptr<libcamera::Camera> camera_;
+      libcamera::Stream *stream_;
+      std::shared_ptr<libcamera::FrameBufferAllocator> allocator_;
+      std::vector<std::unique_ptr<libcamera::Request>> requests_;
+      std::mutex request_lock_;
+
+      std::string frame_id_;
 
       struct buffer_info_t
       {
         void *data;
         size_t size;
       };
-      std::unordered_map<const libcamera::FrameBuffer *, buffer_info_t> buffer_info;
+      std::unordered_map<const libcamera::FrameBuffer *, buffer_info_t> buffer_info_;
+
+      std::shared_ptr<camera_info_manager::CameraInfoManager> cinfo_;
+
+      image_transport::CameraPublisher image_pub_;
+			std::mutex image_pub_mutex_;
 
       void requestComplete(libcamera::Request *request);
   };
 
+  //}
+
+  /* getParamCheck() method //{ */
+  template <typename T>
+  bool getParamCheck(const ros::NodeHandle& nh, const std::string& node_name, const std::string& param_name, T& param_out)
+  {
+    const bool res = nh.getParam(param_name, param_out);
+    if (!res)
+      ROS_ERROR_STREAM("[" << node_name << "]: Could not load compulsory parameter '" << param_name << "'");
+    else
+      ROS_INFO_STREAM("[" << node_name << "]: Loaded parameter '" << param_name << "': " << param_out);
+    return res;
+  }
+
+  template <typename T>
+  bool getParamCheck(const ros::NodeHandle& nh, const std::string& node_name, const std::string& param_name, T& param_out, const T& param_default)
+  {
+    const bool res = nh.getParam(param_name, param_out);
+    if (!res)
+      param_out = param_default;
+    ROS_INFO_STREAM("[" << node_name << "]: Loaded parameter '" << param_name << "': " << param_out);
+    return res;
+  }
   //}
 
   void LibcameraRos::onInit() {
@@ -107,21 +139,57 @@ namespace libcamera_ros
 
     /* waits for the ROS to publish clock */
     ros::Time::waitForValid();
+     /* load parameters //{ */
+
+    bool success = true;
+    std::string camera_name;
+    std::string camera_role;
+    std::string camera_format;
+    std::string calib_url;
+		int width;
+    int height;
+
+    success = success && getParamCheck(nh_, "LibcameraRos", "camera_name", camera_name);
+    success = success && getParamCheck(nh_, "LibcameraRos", "camera_role", camera_role);
+    success = success && getParamCheck(nh_, "LibcameraRos", "camera_format", camera_format);
+    success = success && getParamCheck(nh_, "LibcameraRos", "frame_id", frame_id_);
+    success = success && getParamCheck(nh_, "LibcameraRos", "calib_url", calib_url);
+    success = success && getParamCheck(nh_, "LibcameraRos", "width", width);
+    success = success && getParamCheck(nh_, "LibcameraRos", "height", height);
+
+    if (!success)
+    {
+      ROS_ERROR("[LibcameraRos]: Some compulsory parameters were not loaded successfully, ending the node");
+      ros::shutdown();
+      return;
+    }
+
+    cinfo_ = std::make_shared<camera_info_manager::CameraInfoManager>(nh_, camera_name, calib_url);
+
+    /* initialize publishers //{ */
+
+    image_transport::ImageTransport it(nh_);
+    image_pub_ = it.advertiseCamera("image_raw", 5);
+
+    //}
 
     // start camera manager and check for cameras
-    camera_manager.start();
-    if (camera_manager.cameras().empty())
+    camera_manager_.start();
+    if (camera_manager_.cameras().empty())
       throw std::runtime_error("no cameras available");
 
-    if (!camera)
-      throw std::runtime_error("failed to find camera");
+    camera_ = camera_manager_.get(camera_name);
+    if (!camera_) {
+      ROS_INFO_STREAM(camera_manager_);
+      throw std::runtime_error("camera with name " + camera_name + " does not exist");
+    }
 
-    if (camera->acquire())
+    if (camera_->acquire())
       throw std::runtime_error("failed to acquire camera");
 
     // configure camera stream
     std::unique_ptr<libcamera::CameraConfiguration> cfg =
-      camera->generateConfiguration({get_role("raw")});
+      camera_->generateConfiguration({get_role(camera_role)});
 
     if (!cfg)
       throw std::runtime_error("failed to generate configuration");
@@ -130,7 +198,7 @@ namespace libcamera_ros
     // store full list of stream formats
     const libcamera::StreamFormats &stream_formats = scfg.formats();
     const std::vector<libcamera::PixelFormat> &pixel_formats = scfg.formats().pixelformats();
-    const std::string format = {} ;
+    const std::string format = camera_format;
     if (format.empty()) {
       ROS_INFO_STREAM(stream_formats);
       // check if the default pixel format is supported
@@ -167,7 +235,7 @@ namespace libcamera_ros
       scfg.pixelFormat = format_requested;
     }
 
-    const libcamera::Size size({});
+    const libcamera::Size size(width, height);
     if (size.isNull()) {
       ROS_INFO_STREAM(scfg);
       scfg.size = scfg.formats().sizes(scfg.pixelFormat).back();
@@ -197,36 +265,19 @@ namespace libcamera_ros
         break;
     }
 
-    if (camera->configure(cfg.get()) < 0)
+    if (camera_->configure(cfg.get()) < 0)
       throw std::runtime_error("failed to configure streams");
 
-    ROS_INFO_STREAM("camera \"" << camera->id() << "\" configured with " << scfg.toString() << " stream");
-
-    // format camera name for calibration file
-    const libcamera::ControlList &props = camera->properties();
-    std::string cname = camera->id() + '_' + scfg.size.toString();
-    const std::optional<std::string> model = props.get(libcamera::properties::Model);
-    if (model)
-      cname = model.value() + '_' + cname;
-
-    // clean camera name of non-alphanumeric characters
-    cname.erase(
-        std::remove_if(cname.begin(), cname.end(), [](const char &x) { return std::isspace(x); }),
-        cname.cend());
-    std::replace_if(
-        cname.begin(), cname.end(), [](const char &x) { return !std::isalnum(x); }, '_');
-
-    /* if (!cim.setCameraName(cname)) */
-    /*   throw std::runtime_error("camera name must only contain alphanumeric characters"); */
+    ROS_INFO_STREAM("camera \"" << camera_->id() << "\" configured with " << scfg.toString() << " stream");
 
     // allocate stream buffers and create one request per buffer
-    stream = scfg.stream();
+    stream_ = scfg.stream();
 
-    allocator = std::make_shared<libcamera::FrameBufferAllocator>(camera);
-    allocator->allocate(stream);
+    allocator_ = std::make_shared<libcamera::FrameBufferAllocator>(camera_);
+    allocator_->allocate(stream_);
 
-    for (const std::unique_ptr<libcamera::FrameBuffer> &buffer : allocator->buffers(stream)) {
-      std::unique_ptr<libcamera::Request> request = camera->createRequest();
+    for (const std::unique_ptr<libcamera::FrameBuffer> &buffer : allocator_->buffers(stream_)) {
+      std::unique_ptr<libcamera::Request> request = camera_->createRequest();
       if (!request)
         throw std::runtime_error("Can't create request");
 
@@ -249,105 +300,95 @@ namespace libcamera_ros
       void *data = mmap(nullptr, buffer_length, PROT_READ, MAP_SHARED, fd, 0);
       if (data == MAP_FAILED)
         throw std::runtime_error("mmap failed: " + std::string(std::strerror(errno)));
-      buffer_info[buffer.get()] = {data, buffer_length};
+      buffer_info_[buffer.get()] = {data, buffer_length};
 
-      if (request->addBuffer(stream, buffer.get()) < 0)
+      if (request->addBuffer(stream_, buffer.get()) < 0)
         throw std::runtime_error("Can't set buffer for request");
 
-      requests.push_back(std::move(request));
+      requests_.push_back(std::move(request));
     }
 
     // register callback
-    camera->requestCompleted.connect(this, &LibcameraRos::requestComplete);
+    camera_->requestCompleted.connect(this, &LibcameraRos::requestComplete);
 
     // start camera and queue all requests
-    if (camera->start())
+    if (camera_->start())
       throw std::runtime_error("failed to start camera");
 
-    for (std::unique_ptr<libcamera::Request> &request : requests)
-      camera->queueRequest(request.get());
+    for (std::unique_ptr<libcamera::Request> &request : requests_)
+      camera_->queueRequest(request.get());
 
     // | --------------------- finish the init -------------------- |
 
     ROS_INFO("[LibcameraRos]: initialized");
-    ROS_INFO("[LibcameraRos]: --------------------");
   }
 
   LibcameraRos::~LibcameraRos()
   {
-    camera->requestCompleted.disconnect();
-    request_lock.lock();
-    if (camera->stop())
+    camera_->requestCompleted.disconnect();
+    request_lock_.lock();
+    if (camera_->stop())
       std::cerr << "failed to stop camera" << std::endl;
-    request_lock.unlock();
-    camera->release();
-    camera_manager.stop();
-    for (const auto &e : buffer_info)
+    request_lock_.unlock();
+    camera_->release();
+    camera_manager_.stop();
+    for (const auto &e : buffer_info_)
       if (munmap(e.second.data, e.second.size) == -1)
         std::cerr << "munmap failed: " << std::strerror(errno) << std::endl;
   }
 
-  void LibcameraRos::requestComplete(libcamera::Request *request) {
-    request_lock.lock();
+	void LibcameraRos::requestComplete(libcamera::Request *request) {
+		request_lock_.lock();
 
-    if (request->status() == libcamera::Request::RequestComplete) {
-      assert(request->buffers().size() == 1);
+		if (request->status() == libcamera::Request::RequestComplete) {
+			assert(request->buffers().size() == 1);
 
-      // get the stream and buffer from the request
-      const libcamera::FrameBuffer *buffer = request->findBuffer(stream);
-      const libcamera::FrameMetadata &metadata = buffer->metadata();
-      size_t bytesused = 0;
-      for (const libcamera::FrameMetadata::Plane &plane : metadata.planes())
-        bytesused += plane.bytesused;
+			// get the stream and buffer from the request
+			const libcamera::FrameBuffer *buffer = request->findBuffer(stream_);
+			const libcamera::FrameMetadata &metadata = buffer->metadata();
+			size_t bytesused = 0;
+			for (const libcamera::FrameMetadata::Plane &plane : metadata.planes())
+				bytesused += plane.bytesused;
 
-      // send image data
-      std_msgs::Header hdr;
-      hdr.stamp = ros::Time().fromNSec(metadata.timestamp);
-      hdr.frame_id = "camera";
-      const libcamera::StreamConfiguration &cfg = stream->configuration();
+			// send image data
+			std_msgs::Header hdr;
+			hdr.stamp = ros::Time().fromNSec(metadata.timestamp);
+			hdr.frame_id = frame_id_;
+			const libcamera::StreamConfiguration &cfg = stream_->configuration();
 
-      /* auto msg_img = std::make_unique<sensor_msgs::Image>(); */
+			sensor_msgs::Image image_msg; 
 
-      /* if (format_type(cfg.pixelFormat) == FormatType::RAW) { */
-      /*   // raw uncompressed image */
-      /*   assert(buffer_info[buffer].size == bytesused); */
-      /*   msg_img->header = hdr; */
-      /*   msg_img->width = cfg.size.width; */
-      /*   msg_img->height = cfg.size.height; */
-      /*   msg_img->step = cfg.stride; */
-      /*   msg_img->encoding = get_ros_encoding(cfg.pixelFormat); */
-      /*   msg_img->is_bigendian = (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__); */
-      /*   msg_img->data.resize(buffer_info[buffer].size); */
-      /*   memcpy(msg_img->data.data(), buffer_info[buffer].data, buffer_info[buffer].size); */
+			if (format_type(cfg.pixelFormat) == FormatType::RAW) {
+				// raw uncompressed image
+				assert(buffer_info_[buffer].size == bytesused);
+				image_msg.header = hdr;
+				image_msg.width = cfg.size.width;
+				image_msg.height = cfg.size.height;
+				image_msg.step = cfg.stride;
+				image_msg.encoding = get_ros_encoding(cfg.pixelFormat);
+				image_msg.is_bigendian = (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__);
+				image_msg.data.resize(buffer_info_[buffer].size);
+				memcpy(image_msg.data.data(), buffer_info_[buffer].data, buffer_info_[buffer].size);
 
-      /*   // compress to jpeg */
-      /*   if (pub_image_compressed->get_subscription_count()) */
-      /*     cv_bridge::toCvCopy(*msg_img)->toCompressedImageMsg(*msg_img_compressed); */
-      /* } */
-      /* else { */
-      /*   throw std::runtime_error("unsupported pixel format: " + */
-      /*                            stream->configuration().pixelFormat.toString()); */
-      /* } */
+			}else {
+				throw std::runtime_error("unsupported pixel format: " +
+						stream_->configuration().pixelFormat.toString());
+			}
 
-      /* pub_image->publish(std::move(msg_img)); */
-      /* pub_image_compressed->publish(std::move(msg_img_compressed)); */
+			sensor_msgs::CameraInfo cinfo_msg = cinfo_->getCameraInfo();
+			cinfo_msg.header = hdr;
+			std::scoped_lock lck(image_pub_mutex_);
+			image_pub_.publish(image_msg, cinfo_msg);
+		}
+		else if (request->status() == libcamera::Request::RequestCancelled) {
+			ROS_ERROR_STREAM("request '" << request->toString() << "' cancelled");
+		}
 
-      /* sensor_msgs::msg::CameraInfo ci = cim.getCameraInfo(); */
-      /* ci.header = hdr; */
-      /* pub_ci->publish(ci); */
-      /* } */
-      /* else if (request->status() == libcamera::Request::RequestCancelled) { */
-      /* ROS_ERROR_STREAM("request '" << request->toString() << "' cancelled"); */
-      /* } */
-
-      // queue the request again for the next frame
-      request->reuse(libcamera::Request::ReuseBuffers);
-
-      camera->queueRequest(request);
-
-      request_lock.unlock();
-      }
-  }
+		// queue the request again for the next frame
+		request->reuse(libcamera::Request::ReuseBuffers);
+		camera_->queueRequest(request);
+		request_lock_.unlock();
+	}
 
 } // namespace libcamera_ros
 

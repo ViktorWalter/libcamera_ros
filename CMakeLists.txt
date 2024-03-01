@@ -10,6 +10,8 @@ set(CATKIN_DEPENDENCIES
   nodelet
   sensor_msgs
   std_msgs
+  camera_info_manager
+  image_transport
   )
 
 set(LIBRARIES
