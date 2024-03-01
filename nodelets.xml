@@ -1,0 +1,5 @@
+<library path="lib/libLibcameraRos">
+  <class name="libcamera_ros/LibcameraRos" type="libcamera_ros::LibcameraRos" base_class_type="nodelet::Nodelet">
+    <description>Libcamera_ros nodelet</description>
+  </class>
+</library>

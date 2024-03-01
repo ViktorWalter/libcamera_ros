@@ -15,7 +15,7 @@ set(CATKIN_DEPENDENCIES
   )
 
 set(LIBRARIES
-  LibCameraRos
+  LibcameraRos
   )
 
 find_package(catkin REQUIRED COMPONENTS
@@ -38,7 +38,7 @@ include_directories(
 
 
 # library with common utility functions for type conversions
-add_library(LibCameraRos 
+add_library(LibcameraRos 
   src/LibcameraRos.cpp
   src/utils/clamp.cpp
   src/utils/format_mapping.cpp
@@ -48,7 +48,7 @@ add_library(LibCameraRos
 )
 
 
-target_link_libraries(LibCameraRos
+target_link_libraries(LibcameraRos
   ${catkin_LIBRARIES}
   ${libcamera_LINK_LIBRARIES}
   )

@@ -37,7 +37,7 @@
 #include <libcamera/request.h>
 #include <libcamera/stream.h>
 
-//
+//}
 
 #include <libcamera_ros/utils/clamp.hpp>
 #include <libcamera_ros/utils/format_mapping.hpp>
@@ -57,6 +57,7 @@
 namespace libcamera_ros
 {
 
+  /* get_role() method //{ */
   libcamera::StreamRole get_role(const std::string &role)
   {
     static const std::unordered_map<std::string, libcamera::StreamRole> roles_map = {
@@ -73,6 +74,32 @@ namespace libcamera_ros
       throw std::runtime_error("invalid stream role: \"" + role + "\"");
     }
   }
+
+  //}
+
+  /* getParamCheck() method //{ */
+  template <typename T>
+  bool getParamCheck(const ros::NodeHandle& nh, const std::string& node_name, const std::string& param_name, T& param_out)
+  {
+    const bool res = nh.getParam(param_name, param_out);
+    if (!res)
+      ROS_ERROR_STREAM("[" << node_name << "]: Could not load compulsory parameter '" << param_name << "'");
+    else
+      ROS_INFO_STREAM("[" << node_name << "]: Loaded parameter '" << param_name << "': " << param_out);
+    return res;
+  }
+
+  template <typename T>
+  bool getParamCheck(const ros::NodeHandle& nh, const std::string& node_name, const std::string& param_name, T& param_out, const T& param_default)
+  {
+    const bool res = nh.getParam(param_name, param_out);
+    if (!res)
+      param_out = param_default;
+    ROS_INFO_STREAM("[" << node_name << "]: Loaded parameter '" << param_name << "': " << param_out);
+    return res;
+  }
+
+  //}
 
   /* class LibcameraRos //{ */
 
@@ -110,28 +137,7 @@ namespace libcamera_ros
 
   //}
 
-  /* getParamCheck() method //{ */
-  template <typename T>
-  bool getParamCheck(const ros::NodeHandle& nh, const std::string& node_name, const std::string& param_name, T& param_out)
-  {
-    const bool res = nh.getParam(param_name, param_out);
-    if (!res)
-      ROS_ERROR_STREAM("[" << node_name << "]: Could not load compulsory parameter '" << param_name << "'");
-    else
-      ROS_INFO_STREAM("[" << node_name << "]: Loaded parameter '" << param_name << "': " << param_out);
-    return res;
-  }
-
-  template <typename T>
-  bool getParamCheck(const ros::NodeHandle& nh, const std::string& node_name, const std::string& param_name, T& param_out, const T& param_default)
-  {
-    const bool res = nh.getParam(param_name, param_out);
-    if (!res)
-      param_out = param_default;
-    ROS_INFO_STREAM("[" << node_name << "]: Loaded parameter '" << param_name << "': " << param_out);
-    return res;
-  }
-  //}
+  /* LibcameraRos::onInit method //{ */
 
   void LibcameraRos::onInit() {
     /* obtain node handle */
@@ -139,7 +145,8 @@ namespace libcamera_ros
 
     /* waits for the ROS to publish clock */
     ros::Time::waitForValid();
-     /* load parameters //{ */
+     
+    /* load parameters //{ */
 
     bool success = true;
     std::string camera_name;
@@ -163,6 +170,8 @@ namespace libcamera_ros
       ros::shutdown();
       return;
     }
+
+    //}
 
     cinfo_ = std::make_shared<camera_info_manager::CameraInfoManager>(nh_, camera_name, calib_url);
 
@@ -322,6 +331,9 @@ namespace libcamera_ros
 
     ROS_INFO("[LibcameraRos]: initialized");
   }
+  //}
+
+  /* LibcameraRos::~LibcameraRos() //{ */
 
   LibcameraRos::~LibcameraRos()
   {
@@ -336,6 +348,9 @@ namespace libcamera_ros
       if (munmap(e.second.data, e.second.size) == -1)
         std::cerr << "munmap failed: " << std::strerror(errno) << std::endl;
   }
+  //}
+
+  /* LibcameraRos::requestComplete() //{ */
 
 	void LibcameraRos::requestComplete(libcamera::Request *request) {
 		request_lock_.lock();
@@ -389,6 +404,7 @@ namespace libcamera_ros
 		camera_->queueRequest(request);
 		request_lock_.unlock();
 	}
+  //}
 
 } // namespace libcamera_ros
 
