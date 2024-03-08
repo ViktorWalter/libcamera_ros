@@ -12,6 +12,7 @@ set(CATKIN_DEPENDENCIES
   std_msgs
   camera_info_manager
   image_transport
+  libcamera
   )
 
 set(LIBRARIES
@@ -23,19 +24,15 @@ find_package(catkin REQUIRED COMPONENTS
   )
 
 catkin_package(
+  INCLUDE_DIRS include
   LIBRARIES ${LIBRARIES}
   CATKIN_DEPENDS ${CATKIN_DEPENDENCIES}
   )
 
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(libcamera REQUIRED libcamera)
-
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
-  ${libcamera_INCLUDE_DIRS}
   )
-
 
 # library with common utility functions for type conversions
 add_library(LibcameraRos 
@@ -50,7 +47,6 @@ add_library(LibcameraRos
 
 target_link_libraries(LibcameraRos
   ${catkin_LIBRARIES}
-  ${libcamera_LINK_LIBRARIES}
   )
 
 ## --------------------------------------------------------------
@@ -61,6 +57,10 @@ install(TARGETS ${LIBRARIES}
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
+  )
+
+install(DIRECTORY launch
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
   )
 
 install(DIRECTORY ./
