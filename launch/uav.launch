@@ -26,6 +26,7 @@
   <arg unless="$(arg standalone)" name="nodelet_manager" value="$(arg manager)"/>
   <arg     if="$(arg standalone)" name="nodelet_manager" value=""/>
 
+  <env name="LIBCAMERA_IPA_MODULE_PATH" value="$(optenv LIBCAMERA_IPA_MODULE_PATH /opt/ros/noetic/lib/libcamera/)" />
   <group ns="$(arg UAV_NAME)">
 
     <!-- IROCBridge nodelet -->
