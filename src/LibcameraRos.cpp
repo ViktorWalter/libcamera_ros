@@ -153,10 +153,12 @@ namespace libcamera_ros
     std::string camera_role;
     std::string camera_format;
     std::string calib_url;
-		int width;
+    int camera_id;
+    int width;
     int height;
 
     success = success && getParamCheck(nh_, "LibcameraRos", "camera_name", camera_name);
+    success = success && getParamCheck(nh_, "LibcameraRos", "camera_id", camera_id);
     success = success && getParamCheck(nh_, "LibcameraRos", "camera_role", camera_role);
     success = success && getParamCheck(nh_, "LibcameraRos", "camera_format", camera_format);
     success = success && getParamCheck(nh_, "LibcameraRos", "frame_id", frame_id_);
@@ -187,7 +189,17 @@ namespace libcamera_ros
     if (camera_manager_.cameras().empty())
       throw std::runtime_error("no cameras available");
 
-    camera_ = camera_manager_.get(camera_name);
+    if (!camera_name.empty()){
+      camera_ = camera_manager_.get(camera_name);
+    }else{
+      if(camera_id >= camera_manager_.cameras().size()){
+        ROS_ERRO_STREAM(camera_manager_);
+        throw std::runtime_error("camera with id " + camera_name + " does not exist");
+      } 
+      camera_ = camera_manager_.camera().id(camera_id);
+      ROS_INFO_STREAM("Use camera by id: " << camera_id);
+    }
+
     if (!camera_) {
       ROS_INFO_STREAM(camera_manager_);
       throw std::runtime_error("camera with name " + camera_name + " does not exist");
