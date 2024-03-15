@@ -193,10 +193,10 @@ namespace libcamera_ros
       camera_ = camera_manager_.get(camera_name);
     }else{
       if(camera_id >= camera_manager_.cameras().size()){
-        ROS_ERRO_STREAM(camera_manager_);
+        ROS_ERROR_STREAM(camera_manager_);
         throw std::runtime_error("camera with id " + camera_name + " does not exist");
       } 
-      camera_ = camera_manager_.camera().id(camera_id);
+      camera_ = camera_manager_.cameras().at(camera_id);
       ROS_INFO_STREAM("Use camera by id: " << camera_id);
     }
 

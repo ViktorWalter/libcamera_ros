@@ -2,12 +2,12 @@
 
   <arg name="camera_name" default=""/>
   <arg name="camera_id" default="0"/>
-  <arg name="camera_role" default="raw"/>
-  <arg name="camera_format" default=""/>
+  <arg name="camera_role" default="still"/>
+  <arg name="camera_format" default="RGB888"/>
   <arg name="frame_id" default="$(arg camera_name)_frame"/>
   <arg name="calib_url" default="file://$(find libcamera_ros)/config/calib/libcamera.yaml"/>
-  <arg name="width" default="0"/>
-  <arg name="height" default="0"/>
+  <arg name="width" default="1456"/>
+  <arg name="height" default="1088"/>
 
   <!-- will it run using GNU debugger? -->
   <arg name="DEBUG" default="false" />
@@ -26,7 +26,7 @@
   <env name="LIBPISP_BE_CONFIG_FILE" value="$(optenv LIBPISP_BE_CONFIG_FILE /opt/ros/noetic/share/libpisp/backend_default_config.json)" />
   <env name="LIBCAMERA_IPA_MODULE_PATH" value="$(optenv LIBCAMERA_IPA_MODULE_PATH /opt/ros/noetic/lib/libcamera/)" />
   <env name="LIBCAMERA_IPA_CONFIG_PATH" value="$(optenv LIBCAMERA_IPA_CONFIG_PATH /opt/ros/noetic/share/libcamera/ipa)" />
-  <env name="LIBCAMERA_LOG_LEVELS" value="$(optenv LIBCAMERA_LOG_LEVELS *:DEBUG)" />
+  <!-- <env name="LIBCAMERA_LOG_LEVELS" value="$(optenv LIBCAMERA_LOG_LEVELS *:DEBUG)" /> -->
 
   <!-- IROCBridge nodelet -->
   <node pkg="nodelet" type="nodelet" name="libcamera_ros" args="$(arg nodelet) libcamera_ros/LibcameraRos $(arg nodelet_manager)" launch-prefix="$(arg launch_prefix_debug)" output="screen">
