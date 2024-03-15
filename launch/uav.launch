@@ -27,6 +27,8 @@
   <arg     if="$(arg standalone)" name="nodelet_manager" value=""/>
 
   <env name="LIBCAMERA_IPA_MODULE_PATH" value="$(optenv LIBCAMERA_IPA_MODULE_PATH /opt/ros/noetic/lib/libcamera/)" />
+  <env name="LIBPISP_BE_CONFIG_FILE" value="$(optenv LIBPISP_BE_CONFIG_FILE /opt/ros/noetic/share/libpisp/backend_default_config.json)" />
+
   <group ns="$(arg UAV_NAME)">
 
     <!-- IROCBridge nodelet -->
