@@ -12,8 +12,6 @@
   <arg name="width" default="1456"/>
   <arg name="height" default="1088"/>
 
-  <arg name="custom_config" default="" />
-
   <!-- will it run using GNU debugger? -->
   <arg name="DEBUG" default="false" />
   <arg unless="$(arg DEBUG)" name="launch_prefix_debug" value=""/>
@@ -36,12 +34,6 @@
 
     <!-- IROCBridge nodelet -->
     <node pkg="nodelet" type="nodelet" name="libcamera_ros" args="$(arg nodelet) libcamera_ros/LibcameraRos $(arg nodelet_manager)" launch-prefix="$(arg launch_prefix_debug)" output="screen">
-
-      <param name="config" value="$(find libcamera_ros)/config/config.yaml" />
-
-      <param if="$(eval arg('custom_config') == '')" name="custom_config" value="" />
-      <param if="$(eval not arg('custom_config') == '' and arg('custom_config')[0] == '/')" name="custom_config" value="$(arg custom_config)" />
-      <param if="$(eval not arg('custom_config') == '' and not arg('custom_config')[0] == '/')" name="custom_config" value="$(env PWD)/$(arg custom_config)" />
 
       <param name="camera_name" type="string" value="$(arg camera_name)"/>
       <param name="camera_id" type="int" value="$(arg camera_id)"/>
