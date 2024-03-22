@@ -317,6 +317,9 @@ namespace libcamera_ros
       ros::shutdown();
       return;
     }
+    ROS_INFO("Available controls:");
+    for (auto const &[id, info] : camera_->controls()){
+      ROS_INFO_STREAM("    " << id->name() << " : " << info.toString());
 
     ROS_INFO_STREAM("camera \"" << camera_->id() << "\" configured with " << scfg.toString() << " stream");
 
