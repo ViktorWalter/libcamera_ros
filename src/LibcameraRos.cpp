@@ -39,11 +39,12 @@
 
 //}
 
-#include <libcamera_ros/utils/clamp.hpp>
-#include <libcamera_ros/utils/format_mapping.hpp>
-#include <libcamera_ros/utils/pretty_print.hpp>
-#include <libcamera_ros/utils/type_extent.hpp>
-#include <libcamera_ros/utils/types.hpp>
+#include <libcamera_ros/utils/clamp.h>
+#include <libcamera_ros/utils/format_mapping.h>
+#include <libcamera_ros/utils/pretty_print.h>
+#include <libcamera_ros/utils/type_extent.h>
+#include <libcamera_ros/utils/types.h>
+#include <libcamera_ros/utils/pv_to_cv.h>
 
 #include <ros/ros.h>
 #include <nodelet/nodelet.h>
@@ -133,6 +134,10 @@ namespace libcamera_ros
       image_transport::CameraPublisher image_pub_;
       std::mutex image_pub_mutex_;
 
+      // map parameter names to libcamera control id
+      std::unordered_map<std::string, const libcamera::ControlId *> parameter_ids_;
+
+      void declareParameters();
       void requestComplete(libcamera::Request *request);
   };
 
@@ -317,12 +322,14 @@ namespace libcamera_ros
       ros::shutdown();
       return;
     }
+    ROS_INFO_STREAM("camera \"" << camera_->id() << "\" configured with " << scfg.toString() << " stream");
+    
     ROS_INFO("Available controls:");
     for (auto const &[id, info] : camera_->controls()){
       ROS_INFO_STREAM("    " << id->name() << " : " << info.toString());
     }
 
-    ROS_INFO_STREAM("camera \"" << camera_->id() << "\" configured with " << scfg.toString() << " stream");
+    declareParameters();
 
     // allocate stream buffers and create one request per buffer
     stream_ = scfg.stream();
@@ -412,6 +419,40 @@ namespace libcamera_ros
     for (const auto &e : buffer_info_)
       if (munmap(e.second.data, e.second.size) == -1)
         std::cerr << "munmap failed: " << std::strerror(errno) << std::endl;
+  }
+  //}
+
+  /* LibcameraRos::declareParameters() //{ */
+  void LibcameraRos::declareParameters()
+  {
+    for (const auto &[id, info] : camera_->controls()) {
+      // store control id with name
+      parameter_ids_[id->name()] = id;
+
+      std::size_t extent;
+      try {
+        extent = get_extent(id);
+      }
+      catch (const std::runtime_error &e) {
+        // ignore
+        ROS_WARN_STREAM(e.what());
+        continue;
+      }
+
+      // format type description
+      const std::string cv_descr =
+        std::to_string(id->type()) + " " +
+        std::string(extent > 1 ? "array[" + std::to_string(extent) + "]" : "scalar") + " range {" +
+        info.min().toString() + "}..{" + info.max().toString() + "}" +
+        (info.def().isNone() ? std::string {} : " (default: {" + info.def().toString() + "})");
+
+      if (info.min().numElements() != info.max().numElements()){
+        ROS_ERROR("minimum and maximum parameter array sizes do not match");
+        ros::shutdown();
+        return;
+      }
+    }
+
   }
   //}
 

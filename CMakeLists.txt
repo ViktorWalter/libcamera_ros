@@ -42,6 +42,7 @@ add_library(LibcameraRos
   src/utils/pretty_print.cpp
   src/utils/types.cpp
   src/utils/type_extent.cpp
+  src/utils/pv_to_cv.cpp
 )
 
 

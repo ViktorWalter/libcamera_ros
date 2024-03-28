@@ -1,4 +1,4 @@
-#include <libcamera_ros/utils/types.hpp>
+#include <libcamera_ros/utils/types.h>
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
