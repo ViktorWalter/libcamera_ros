@@ -117,9 +117,14 @@ namespace libcamera_ros
 
       // map parameter names to libcamera control id
       std::unordered_map<std::string, const libcamera::ControlId *> parameter_ids_;
+      // parameters that are to be set for every request
+      std::unordered_map<unsigned int, libcamera::ControlValue> parameters_;
 
-      void declareParameters();
+      void declareControlParameters();
       void requestComplete(libcamera::Request *request);
+
+      template<typename T>
+        bool updateControlParameter(const std::string &param_name, const libcamera::ControlId *id);
   };
 
   //}
@@ -296,7 +301,51 @@ namespace libcamera_ros
     }
     ROS_INFO_STREAM("camera \"" << camera_->id() << "\" configured with " << scfg.toString() << " stream");
 
-    declareParameters();
+    declareControlParameters();
+
+    updateControlParameter<int>(std::string("control/exposure_time"), parameter_ids_["ExposureTime"]);
+    /* IF(AeEnable) */
+    /* IF(AeLocked) */
+    /* IF(AeMeteringMode) */
+    /* IF(AeConstraintMode) */
+    /* IF(AeExposureMode) */
+    /* IF(ExposureValue) */
+    /* IF(ExposureTime) */
+    /* IF(AnalogueGain) */
+    /* /1* IF(AeFlickerMode) *1/ */
+    /* /1* IF(AeFlickerPeriod) *1/ */
+    /* /1* IF(AeFlickerDetected) *1/ */
+    /* IF(Brightness) */
+    /* IF(Contrast) */
+    /* IF(Lux) */
+    /* IF(AwbEnable) */
+    /* IF(AwbMode) */
+    /* IF(AwbLocked) */
+    /* IF(ColourGains) */
+    /* IF(ColourTemperature) */
+    /* IF(Saturation) */
+    /* IF(SensorBlackLevels) */
+    /* IF(Sharpness) */
+    /* IF(FocusFoM) */
+    /* IF(ColourCorrectionMatrix) */
+    /* IF(ScalerCrop) */
+    /* IF(DigitalGain) */
+    /* IF(FrameDuration) */
+    /* IF(FrameDurationLimits) */
+    /* /1* IF(SensorTemperature) *1/ */
+    /* IF(SensorTimestamp) */
+    /* IF(AfMode) */
+    /* IF(AfRange) */
+    /* IF(AfSpeed) */
+    /* IF(AfMetering) */
+    /* IF(AfWindows) */
+    /* IF(AfTrigger) */
+    /* IF(AfPause) */
+    /* IF(LensPosition) */
+    /* IF(AfState) */
+    /* IF(AfPauseState) */
+    /* /1* IF(HdrMode) *1/ */
+    /* /1* IF(HdrChannel) *1/ */
 
     // allocate stream buffers and create one request per buffer
     stream_ = scfg.stream();
@@ -399,31 +448,23 @@ namespace libcamera_ros
   }
   //}
 
-  /* LibcameraRos::declareParameters() //{ */
-  void LibcameraRos::declareParameters()
+  /* LibcameraRos::declareControlParameters() //{ */
+  void LibcameraRos::declareControlParameters()
   {
-    ROS_INFO("Available controls:");
+    ROS_INFO("Available control parameters:");
     for (const auto &[id, info] : camera_->controls()) {
-      // store control id with name
-      parameter_ids_[id->name()] = id;
-
       std::size_t extent;
       try {
         extent = get_extent(id);
       }
       catch (const std::runtime_error &e) {
         // ignore
-        /* ROS_WARN_STREAM("    " << id->name() << " : " << e.what()); */
         ROS_WARN_STREAM("    " << id->name() << " : Not handled by the current version of the libcamera SDK");
         continue;
       }
 
-      /* // format type description */
-      /* const std::string cv_descr = */
-      /*   std::to_string(id->type()) + " " + */
-      /*   std::string(extent > 1 ? "array[" + std::to_string(extent) + "]" : "scalar") + " range {" + */
-      /*   info.min().toString() + "}..{" + info.max().toString() + "}" + */
-      /*   (info.def().isNone() ? std::string {} : " (default: {" + info.def().toString() + "})"); */
+      // store control id with name
+      parameter_ids_[id->name()] = id;
 
       if (info.min().numElements() != info.max().numElements()){
         ROS_ERROR("minimum and maximum parameter array sizes do not match");
@@ -434,6 +475,51 @@ namespace libcamera_ros
     }
 
   }
+  //}
+
+  /* LibcameraRos::updateControlParameter() //{ */
+  template <typename T>
+    bool LibcameraRos::updateControlParameter(const std::string & param_name, const libcamera::ControlId *id){
+
+      T param_value; 
+      if (nh_.getParam(param_name.c_str(), param_value)){
+        ROS_INFO_STREAM("[LibcameraRos]: Loaded parameter '" << param_name.c_str() << "': " << param_value);
+      }
+      return false;
+
+      libcamera::ControlValue value = pv_to_cv(param_value, id->type());
+
+      if (value.isNone()) {
+        ROS_ERROR_STREAM(id->name().c_str() << " : parameter type not defined");
+        return false;
+      }
+      // verify parameter type and dimension against default
+      const libcamera::ControlInfo &ci = camera_->controls().at(id);
+
+      if (value.type() != id->type()) {
+        ROS_ERROR_STREAM(id->name().c_str() << " : parameter types mismatch, expected '" <<
+            std::to_string(id->type()).c_str() << "', got '" << std::to_string(value.type()).c_str() <<
+            "'");
+        return false;
+      }
+
+      const std::size_t extent = get_extent(id);
+      if ((value.isArray() && (extent > 0)) && value.numElements() != extent) {
+        ROS_ERROR_STREAM(id->name().c_str() << " : parameter dimensions mismatch, expected " <<
+            std::to_string(extent).c_str() << ", got " << std::to_string(value.numElements()).c_str());
+        return false;
+      }
+
+      // check bounds and return error
+      if (value < ci.min() || value > ci.max()) {
+        ROS_ERROR_STREAM(id->name().c_str() << " : parameter value " << value.toString().c_str() << 
+            " outside of range: " << ci.toString().c_str());
+        return false;
+      }
+
+      parameters_[id->id()] = value;
+      return true;
+    }
   //}
 
   /* LibcameraRos::requestComplete() //{ */
