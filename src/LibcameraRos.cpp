@@ -304,49 +304,21 @@ namespace libcamera_ros
     declareControlParameters();
 
     updateControlParameter<int>(std::string("control/exposure_time"), parameter_ids_["ExposureTime"]);
+    /* updateControlParameter<std::vector<int>>(std::string("control/frame_duration_limits"), parameter_ids_["FrameDurationLimits"]); */
+    updateControlParameter<int>(std::string("control/ae_constraint_mode"), parameter_ids_["AeConstraintMode"]);
     updateControlParameter<float>(std::string("control/brightness"), parameter_ids_["Brightness"]);
-    /* IF(AeEnable) */
-    /* IF(AeLocked) */
-    /* IF(AeMeteringMode) */
-    /* IF(AeConstraintMode) */
-    /* IF(AeExposureMode) */
-    /* IF(ExposureValue) */
-    /* IF(ExposureTime) */
-    /* IF(AnalogueGain) */
-    /* /1* IF(AeFlickerMode) *1/ */
-    /* /1* IF(AeFlickerPeriod) *1/ */
-    /* /1* IF(AeFlickerDetected) *1/ */
-    /* IF(Brightness) */
-    /* IF(Contrast) */
-    /* IF(Lux) */
-    /* IF(AwbEnable) */
-    /* IF(AwbMode) */
-    /* IF(AwbLocked) */
-    /* IF(ColourGains) */
-    /* IF(ColourTemperature) */
-    /* IF(Saturation) */
-    /* IF(SensorBlackLevels) */
-    /* IF(Sharpness) */
-    /* IF(FocusFoM) */
-    /* IF(ColourCorrectionMatrix) */
-    /* IF(ScalerCrop) */
-    /* IF(DigitalGain) */
-    /* IF(FrameDuration) */
-    /* IF(FrameDurationLimits) */
-    /* /1* IF(SensorTemperature) *1/ */
-    /* IF(SensorTimestamp) */
-    /* IF(AfMode) */
-    /* IF(AfRange) */
-    /* IF(AfSpeed) */
-    /* IF(AfMetering) */
-    /* IF(AfWindows) */
-    /* IF(AfTrigger) */
-    /* IF(AfPause) */
-    /* IF(LensPosition) */
-    /* IF(AfState) */
-    /* IF(AfPauseState) */
-    /* /1* IF(HdrMode) *1/ */
-    /* /1* IF(HdrChannel) *1/ */
+    updateControlParameter<float>(std::string("control/sharpness"), parameter_ids_["Sharpness"]);
+    updateControlParameter<bool>(std::string("control/awb_enable"), parameter_ids_["AwbEnable"]);
+    /* updateControlParameter<std::vector<float>>(std::string("control/colour_gains"), parameter_ids_["ColourGains"]); */
+    updateControlParameter<bool>(std::string("control/ae_enable"), parameter_ids_["AeEnable"]);
+    updateControlParameter<float>(std::string("control/saturation"), parameter_ids_["Saturation"]);
+    updateControlParameter<float>(std::string("control/contrast"), parameter_ids_["Contrast"]);
+    updateControlParameter<float>(std::string("control/exposure_value"), parameter_ids_["ExposureValue"]);
+    updateControlParameter<float>(std::string("control/analogue_gain"), parameter_ids_["AnalogueGain"]);
+    updateControlParameter<int>(std::string("control/awb_mode"), parameter_ids_["AwbMode"]);
+    updateControlParameter<int>(std::string("control/ae_metering_mode"), parameter_ids_["AeMeteringMode"]);
+    /* updateControlParameter<std::vector<int>>(std::string("control/scaler_crop"), parameter_ids_["ScalerCrop"]); */
+    updateControlParameter<int>(std::string("control/ae_exposure_mode"), parameter_ids_["AeExposureMode"]);
 
     // allocate stream buffers and create one request per buffer
     stream_ = scfg.stream();
@@ -400,6 +372,12 @@ namespace libcamera_ros
         ros::shutdown();
         return;
       }
+
+      // set modified control parameters
+      for (const auto &[id, value] : parameters_){
+        request->controls().set(id, value);
+      }
+
       requests_.push_back(std::move(request));
     }
 
