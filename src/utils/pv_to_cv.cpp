@@ -25,31 +25,37 @@ libcamera::ControlValue pv_to_cv_int_array(const std::vector<int64_t> &values, c
   }
 }
 
-template<typename T>
-libcamera::ControlValue pv_to_cv(const T &parameter, const libcamera::ControlType &type){
-  if (std::is_same<T, bool>::value){
-    return {parameter};
-  }else if(std::is_same<T, int>::value){
-    if (type == libcamera::ControlTypeInteger32)
-      return {CTInteger32(parameter)};
-    else if (type == libcamera::ControlTypeInteger64)
-      return {CTInteger64(parameter)};
-    else
-      return {};
-  }else if(std::is_same<T, double>::value){
-    return {CTFloat(parameter)};
-  }else if(std::is_same<T, std::string>::value){
-    return {parameter};
-  }else if(std::is_same<T, std::vector<int>>::value){
-    return pv_to_cv_int_array(std::vector<int64_t>(
-      parameter.begin(), parameter.end()), type);
-  }else if(std::is_same<T, std::vector<double>>::value){
-    // convert to float vector
-    return {libcamera::Span<const CTFloat>(std::vector<CTFloat>(
-          parameter.begin(), parameter.end()))};
-  }else if(std::is_same<T, std::vector<std::string>>::value){
-    return {libcamera::Span<const CTString>(parameter)};
-  }else {
+libcamera::ControlValue pv_to_cv(const bool &parameter, const libcamera::ControlType &type){
+  return {parameter};
+}
+
+libcamera::ControlValue pv_to_cv(const int &parameter, const libcamera::ControlType &type){
+  if (type == libcamera::ControlTypeInteger32)
+    return {CTInteger32(parameter)};
+  else if (type == libcamera::ControlTypeInteger64)
+    return {CTInteger64(parameter)};
+  else
     return {};
-  }
+}
+
+libcamera::ControlValue pv_to_cv(const double &parameter, const libcamera::ControlType &type){
+  return {CTFloat(parameter)};
+}
+
+libcamera::ControlValue pv_to_cv(const std::string &parameter, const libcamera::ControlType &type){
+  return {parameter};
+}
+
+libcamera::ControlValue pv_to_cv(const std::vector<int> &parameter, const libcamera::ControlType &type){
+  return pv_to_cv_int_array(std::vector<int64_t>(
+        parameter.begin(), parameter.end()), type);
+}
+
+libcamera::ControlValue pv_to_cv(const std::vector<double> &parameter, const libcamera::ControlType &type){
+  return {libcamera::Span<const CTFloat>(std::vector<CTFloat>(
+        parameter.begin(), parameter.end()))};
+}
+
+libcamera::ControlValue pv_to_cv(const std::vector<std::string> &parameter, const libcamera::ControlType &type){
+  return {libcamera::Span<const CTString>(parameter)};
 }
