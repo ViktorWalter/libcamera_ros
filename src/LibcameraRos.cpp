@@ -156,21 +156,21 @@ namespace libcamera_ros
 
     bool success = true;
     std::string camera_name;
-    std::string camera_role;
-    std::string camera_format;
+    std::string stream_role;
+    std::string pixel_format;
     std::string calib_url;
     int camera_id;
-    int width;
-    int height;
+    int resolution_width;
+    int resolution_height;
 
     success = success && getParamCheck(nh_, "LibcameraRos", "camera_name", camera_name);
     success = success && getParamCheck(nh_, "LibcameraRos", "camera_id", camera_id);
-    success = success && getParamCheck(nh_, "LibcameraRos", "camera_role", camera_role);
-    success = success && getParamCheck(nh_, "LibcameraRos", "camera_format", camera_format);
+    success = success && getParamCheck(nh_, "LibcameraRos", "stream_role", stream_role);
+    success = success && getParamCheck(nh_, "LibcameraRos", "pixel_format", pixel_format);
     success = success && getParamCheck(nh_, "LibcameraRos", "frame_id", frame_id_);
     success = success && getParamCheck(nh_, "LibcameraRos", "calib_url", calib_url);
-    success = success && getParamCheck(nh_, "LibcameraRos", "width", width);
-    success = success && getParamCheck(nh_, "LibcameraRos", "height", height);
+    success = success && getParamCheck(nh_, "LibcameraRos", "resolution/width", resolution_width);
+    success = success && getParamCheck(nh_, "LibcameraRos", "resolution/height", resolution_height);
 
     if (!success)
     {
@@ -226,7 +226,7 @@ namespace libcamera_ros
 
     // configure camera stream
     std::unique_ptr<libcamera::CameraConfiguration> cfg =
-      camera_->generateConfiguration({get_role(camera_role)});
+      camera_->generateConfiguration({get_role(stream_role)});
 
     if (!cfg){
       ROS_ERROR("failed to generate configuration");
@@ -238,7 +238,7 @@ namespace libcamera_ros
     // store full list of stream formats
     const libcamera::StreamFormats &stream_formats = scfg.formats();
     const std::vector<libcamera::PixelFormat> &pixel_formats = scfg.formats().pixelformats();
-    const std::string format = camera_format;
+    const std::string format = pixel_format;
     if (format.empty()) {
       ROS_INFO_STREAM(stream_formats);
       // check if the default pixel format is supported
@@ -285,7 +285,7 @@ namespace libcamera_ros
       scfg.pixelFormat = format_requested;
     }
 
-    const libcamera::Size size(width, height);
+    const libcamera::Size size(resolution_width, resolution_height);
     if (size.isNull()) {
       ROS_INFO_STREAM(scfg);
       scfg.size = scfg.formats().sizes(scfg.pixelFormat).back();
