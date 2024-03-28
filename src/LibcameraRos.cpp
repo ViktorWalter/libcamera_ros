@@ -428,7 +428,7 @@ namespace libcamera_ros
         ros::shutdown();
         return;
       }
-      ROS_INFO_STREAM("    " << id->name() << " : " << info.toString() << info.def().isNone() ? "" : " (default: {" + info.def().toString() + "})");
+      ROS_INFO_STREAM("    " << id->name() << " : " << info.toString() << (info.def().isNone() ? "" : " (default: {" + info.def().toString() + "})"));
     }
 
   }
