@@ -18,24 +18,24 @@ resolution:
 ## --------------------------------------------------------------
 # documentation: https://libcamera.org/api-html/namespacelibcamera_1_1controls.html
 control:
-  exposure_time: 100
-  exposure_value: -8.0
-  brightness: -1.0
-  sharpness: 0.0
+  exposure_time: 20 # [micro-seconds]
+  # stats_output_enable - not supported by the current version of the libcamera SDK
+  # noise_reduction_mode - not supported by the current version of the libcamera SDK
+  frame_duration_limits: 16562
+  ae_constraint_mode: 0
+  brightness: 0.0
+  sharpness: 1.0
   colour_gain: 0.0
-  saturation: 0.0
-  contrast: 0.0
+  ae_enabled: true
+  # ae_flicker_mode - not supported by the current version of the libcamera SDK
+  saturation: 1.0
+  contrast: 1.0
+  # hdr_mode - not supported by the current version of the libcamera SDK
+  exposure_value: 0.0
+  analogue_gain: 1.0
   awb_enable: false
   awb_mode: 0
-  hdr_mode: 0
-  analogue_gain: 1.0
-  scaler_crop: "(0, 0)/32x32"
-  ae_enabled: false
-  ae_exposure_mode: 0
-  ae_flicker_mode: 0
-  ae_flicker_period: 100
-  ae_constraint_mode: 0
+  # ae_flicker_period - not supported by the current version of the libcamera SDK
   ae_metering_mode: 0
-  stats_output_enable: false 
-  noise_reduction_mode: 0
-  frame_duration_limits: 16562
+  scaler_crop: "(0, 0)/1456x1088"
+  ae_exposure_mode: 0

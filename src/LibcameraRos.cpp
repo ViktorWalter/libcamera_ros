@@ -283,7 +283,7 @@ namespace libcamera_ros
             << "\"");
         break;
       case libcamera::CameraConfiguration::Invalid:
-        ROS_ERROR("failed to valid stream configurations");
+        ROS_ERROR("failed to valid stream configuration");
         ros::shutdown();
         return;
         break;
@@ -295,7 +295,7 @@ namespace libcamera_ros
       return;
     }
     ROS_INFO_STREAM("camera \"" << camera_->id() << "\" configured with " << scfg.toString() << " stream");
-    
+
     declareParameters();
 
     // allocate stream buffers and create one request per buffer
@@ -378,6 +378,7 @@ namespace libcamera_ros
     // | --------------------- finish the init -------------------- |
 
     ROS_INFO("[LibcameraRos]: initialized");
+    ROS_INFO("-----------------------------");
   }
   //}
 
