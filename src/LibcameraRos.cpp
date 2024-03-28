@@ -416,19 +416,19 @@ namespace libcamera_ros
         continue;
       }
 
-      // format type description
-      const std::string cv_descr =
-        std::to_string(id->type()) + " " +
-        std::string(extent > 1 ? "array[" + std::to_string(extent) + "]" : "scalar") + " range {" +
-        info.min().toString() + "}..{" + info.max().toString() + "}" +
-        (info.def().isNone() ? std::string {} : " (default: {" + info.def().toString() + "})");
+      /* // format type description */
+      /* const std::string cv_descr = */
+      /*   std::to_string(id->type()) + " " + */
+      /*   std::string(extent > 1 ? "array[" + std::to_string(extent) + "]" : "scalar") + " range {" + */
+      /*   info.min().toString() + "}..{" + info.max().toString() + "}" + */
+      /*   (info.def().isNone() ? std::string {} : " (default: {" + info.def().toString() + "})"); */
 
       if (info.min().numElements() != info.max().numElements()){
         ROS_ERROR("minimum and maximum parameter array sizes do not match");
         ros::shutdown();
         return;
       }
-      ROS_INFO_STREAM("    " << id->name() << " : " << cv_descr);
+      ROS_INFO_STREAM("    " << id->name() << " : " << info.toString() << info.def().isNone() ? "" : " (default: {" + info.def().toString() + "})");
     }
 
   }
