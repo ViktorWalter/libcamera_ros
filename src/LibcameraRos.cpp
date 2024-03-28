@@ -304,6 +304,7 @@ namespace libcamera_ros
     declareControlParameters();
 
     updateControlParameter<int>(std::string("control/exposure_time"), parameter_ids_["ExposureTime"]);
+    updateControlParameter<float>(std::string("control/brightness"), parameter_ids_["Brightness"]);
     /* IF(AeEnable) */
     /* IF(AeLocked) */
     /* IF(AeMeteringMode) */
