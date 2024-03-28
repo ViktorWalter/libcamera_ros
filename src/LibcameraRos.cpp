@@ -461,9 +461,11 @@ namespace libcamera_ros
     bool LibcameraRos::updateControlParameter(const std::string & param_name, const libcamera::ControlId *id){
 
       T param_value; 
-      if (nh_.getParam(param_name.c_str(), param_value)){
-        ROS_INFO_STREAM("[LibcameraRos]: Loaded parameter '" << param_name.c_str() << "': " << param_value);
+      if (!nh_.getParam(param_name.c_str(), param_value)){
+        return false;
       }
+
+      ROS_INFO_STREAM("[LibcameraRos]: Loaded parameter '" << param_name.c_str() << "': " << param_value);
 
       libcamera::ControlValue value = pv_to_cv(param_value, id->type());
 
