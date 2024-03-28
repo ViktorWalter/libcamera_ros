@@ -412,7 +412,7 @@ namespace libcamera_ros
       }
       catch (const std::runtime_error &e) {
         // ignore
-        ROS_WARN_STREAM("    " << e.what());
+        ROS_WARN_STREAM("    " << id->name() << " : " << e.what());
         continue;
       }
 
