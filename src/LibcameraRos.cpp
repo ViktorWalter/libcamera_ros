@@ -60,9 +60,19 @@
 namespace libcamera_ros
 {
 
-  /* getParamCheck() method //{ */
+  /* ParamCheck() method //{ */
   template <typename T>
-    bool getParamCheck(const ros::NodeHandle& nh, const std::string& node_name, const std::string& param_name, T& param_out)
+    bool getOptionalParamCheck(const ros::NodeHandle& nh, const std::string& node_name, const std::string& param_name, T& param_out)
+    {
+      if (!nh.getParam(param_name, param_out)){
+        return false;
+      }
+      ROS_INFO_STREAM("[" << node_name << "]: Loaded parameter '" << param_name << "': " << param_out);
+      return true;
+    }
+
+  template <typename T>
+    bool getCompulsoryParamCheck(const ros::NodeHandle& nh, const std::string& node_name, const std::string& param_name, T& param_out)
     {
       const bool res = nh.getParam(param_name, param_out);
       if (!res)
@@ -73,7 +83,7 @@ namespace libcamera_ros
     }
 
   template <typename T>
-    bool getParamCheck(const ros::NodeHandle& nh, const std::string& node_name, const std::string& param_name, T& param_out, const T& param_default)
+    bool getCompulsoryParamCheck(const ros::NodeHandle& nh, const std::string& node_name, const std::string& param_name, T& param_out, const T& param_default)
     {
       const bool res = nh.getParam(param_name, param_out);
       if (!res)
@@ -123,8 +133,7 @@ namespace libcamera_ros
       void declareControlParameters();
       void requestComplete(libcamera::Request *request);
 
-      template<typename T>
-        bool updateControlParameter(const std::string &param_name, const libcamera::ControlId *id);
+      bool updateControlParameter(const libcamera::ControlValue &value, const libcamera::ControlId *id);
   };
 
   //}
@@ -149,14 +158,14 @@ namespace libcamera_ros
     int resolution_width;
     int resolution_height;
 
-    success = success && getParamCheck(nh_, "LibcameraRos", "camera_name", camera_name);
-    success = success && getParamCheck(nh_, "LibcameraRos", "camera_id", camera_id);
-    success = success && getParamCheck(nh_, "LibcameraRos", "stream_role", stream_role);
-    success = success && getParamCheck(nh_, "LibcameraRos", "pixel_format", pixel_format);
-    success = success && getParamCheck(nh_, "LibcameraRos", "frame_id", frame_id_);
-    success = success && getParamCheck(nh_, "LibcameraRos", "calib_url", calib_url);
-    success = success && getParamCheck(nh_, "LibcameraRos", "resolution/width", resolution_width);
-    success = success && getParamCheck(nh_, "LibcameraRos", "resolution/height", resolution_height);
+    success = success && getCompulsoryParamCheck(nh_, "LibcameraRos", "camera_name", camera_name);
+    success = success && getCompulsoryParamCheck(nh_, "LibcameraRos", "camera_id", camera_id);
+    success = success && getCompulsoryParamCheck(nh_, "LibcameraRos", "stream_role", stream_role);
+    success = success && getCompulsoryParamCheck(nh_, "LibcameraRos", "pixel_format", pixel_format);
+    success = success && getCompulsoryParamCheck(nh_, "LibcameraRos", "frame_id", frame_id_);
+    success = success && getCompulsoryParamCheck(nh_, "LibcameraRos", "calib_url", calib_url);
+    success = success && getCompulsoryParamCheck(nh_, "LibcameraRos", "resolution/width", resolution_width);
+    success = success && getCompulsoryParamCheck(nh_, "LibcameraRos", "resolution/height", resolution_height);
 
     if (!success)
     {
@@ -303,22 +312,53 @@ namespace libcamera_ros
 
     declareControlParameters();
 
-    updateControlParameter<int>(std::string("control/exposure_time"), parameter_ids_["ExposureTime"]);
+    int param_int;
+    float param_float;
+    std::string param_string;
+    bool param_bool;
+
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/exposure_time", param_int)){
+      updateControlParameter(pv_to_cv(param_int, parameter_ids_["ExposureTime"]->type()), parameter_ids_["ExposureTime"]);
+    }
     /* updateControlParameter<std::vector<int>>(std::string("control/frame_duration_limits"), parameter_ids_["FrameDurationLimits"]); */
-    updateControlParameter<int>(std::string("control/ae_constraint_mode"), parameter_ids_["AeConstraintMode"]);
-    updateControlParameter<float>(std::string("control/brightness"), parameter_ids_["Brightness"]);
-    updateControlParameter<float>(std::string("control/sharpness"), parameter_ids_["Sharpness"]);
-    updateControlParameter<bool>(std::string("control/awb_enable"), parameter_ids_["AwbEnable"]);
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/ae_constraint_mode", param_string)){
+      updateControlParameter(pv_to_cv(get_exposure_mode(param_string), parameter_ids_["AeConstraintMode"]->type()), parameter_ids_["AeConstraintMode"]);
+    }
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/brightness", param_float)){
+      updateControlParameter(pv_to_cv(param_float, parameter_ids_["Brightness"]->type()), parameter_ids_["Brightness"]);
+    }
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/sharpness", param_float)){
+      updateControlParameter(pv_to_cv(param_float, parameter_ids_["Sharpness"]->type()), parameter_ids_["Sharpness"]);
+    }
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/awb_enable", param_bool)){
+      updateControlParameter(pv_to_cv(param_bool, parameter_ids_["AwbEnable"]->type()), parameter_ids_["AwbEnable"]);
+    }
     /* updateControlParameter<std::vector<float>>(std::string("control/colour_gains"), parameter_ids_["ColourGains"]); */
-    updateControlParameter<bool>(std::string("control/ae_enable"), parameter_ids_["AeEnable"]);
-    updateControlParameter<float>(std::string("control/saturation"), parameter_ids_["Saturation"]);
-    updateControlParameter<float>(std::string("control/contrast"), parameter_ids_["Contrast"]);
-    updateControlParameter<float>(std::string("control/exposure_value"), parameter_ids_["ExposureValue"]);
-    updateControlParameter<float>(std::string("control/analogue_gain"), parameter_ids_["AnalogueGain"]);
-    updateControlParameter<int>(std::string("control/awb_mode"), parameter_ids_["AwbMode"]);
-    updateControlParameter<int>(std::string("control/ae_metering_mode"), parameter_ids_["AeMeteringMode"]);
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/ae_enable", param_bool)){
+      updateControlParameter(pv_to_cv(param_bool, parameter_ids_["AeEnable"]->type()), parameter_ids_["AeEnable"]);
+    }
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/saturation", param_float)){
+      updateControlParameter(pv_to_cv(param_float, parameter_ids_["Saturation"]->type()), parameter_ids_["Saturation"]);
+    }
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/contrast", param_float)){
+      updateControlParameter(pv_to_cv(param_float, parameter_ids_["Contrast"]->type()), parameter_ids_["Contrast"]);
+    }
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/exposure_value", param_float)){
+      updateControlParameter(pv_to_cv(param_float, parameter_ids_["ExposureValue"]->type()), parameter_ids_["ExposureValue"]);
+    }
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/analogue_gain", param_float)){
+      updateControlParameter(pv_to_cv(param_float, parameter_ids_["AnalogueGain"]->type()), parameter_ids_["AnalogueGain"]);
+    }
+    /* if (getOptionalParamCheck(nh_, "LibcameraRos", "control/awb_mode", param_string)){ */
+    /*   updateControlParameter(pv_to_cv(get_exposure_mode(param_string), parameter_ids_["AwbMode"]->type()), parameter_ids_["AwbMode"]); */
+    /* } */
+    /* if (getOptionalParamCheck(nh_, "LibcameraRos", "control/ae_metering_mode", param_string)){ */
+    /*   updateControlParameter(pv_to_cv(get_exposure_mode(param_string), parameter_ids_["AeMeteringMode"]->type()), parameter_ids_["AeMeteringMode"]); */
+    /* } */
     /* updateControlParameter<std::vector<int>>(std::string("control/scaler_crop"), parameter_ids_["ScalerCrop"]); */
-    updateControlParameter<int>(std::string("control/ae_exposure_mode"), parameter_ids_["AeExposureMode"]);
+    /* if (getOptionalParamCheck(nh_, "LibcameraRos", "control/control", param_string)){ */
+    /*   updateControlParameter(pv_to_cv(get_exposure_mode(param_string), parameter_ids_["AeExposureMode"]->type()), parameter_ids_["AeExposureMode"]); */
+    /* } */
 
     // allocate stream buffers and create one request per buffer
     stream_ = scfg.stream();
@@ -457,17 +497,7 @@ namespace libcamera_ros
   //}
 
   /* LibcameraRos::updateControlParameter() //{ */
-  template <typename T>
-    bool LibcameraRos::updateControlParameter(const std::string & param_name, const libcamera::ControlId *id){
-
-      T param_value; 
-      if (!nh_.getParam(param_name.c_str(), param_value)){
-        return false;
-      }
-
-      ROS_INFO_STREAM("[LibcameraRos]: Loaded parameter '" << param_name.c_str() << "': " << param_value);
-
-      libcamera::ControlValue value = pv_to_cv(param_value, id->type());
+    bool LibcameraRos::updateControlParameter(const libcamera::ControlValue & value, const libcamera::ControlId *id){
 
       if (value.isNone()) {
         ROS_ERROR_STREAM(id->name().c_str() << " : parameter type not defined");
