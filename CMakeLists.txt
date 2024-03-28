@@ -39,6 +39,8 @@ add_library(LibcameraRos
   src/LibcameraRos.cpp
   src/utils/clamp.cpp
   src/utils/format_mapping.cpp
+  src/utils/stream_mapping.cpp
+  src/utils/control_mapping.cpp
   src/utils/pretty_print.cpp
   src/utils/types.cpp
   src/utils/type_extent.cpp

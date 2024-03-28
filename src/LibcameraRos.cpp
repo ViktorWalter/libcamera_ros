@@ -41,6 +41,8 @@
 
 #include <libcamera_ros/utils/clamp.h>
 #include <libcamera_ros/utils/format_mapping.h>
+#include <libcamera_ros/utils/stream_mapping.h>
+#include <libcamera_ros/utils/control_mapping.h>
 #include <libcamera_ros/utils/pretty_print.h>
 #include <libcamera_ros/utils/type_extent.h>
 #include <libcamera_ros/utils/types.h>
@@ -57,27 +59,6 @@
 
 namespace libcamera_ros
 {
-
-  /* get_role() method //{ */
-  libcamera::StreamRole get_role(const std::string &role)
-  {
-    static const std::unordered_map<std::string, libcamera::StreamRole> roles_map = {
-      {"raw", libcamera::StreamRole::Raw},
-      {"still", libcamera::StreamRole::StillCapture},
-      {"video", libcamera::StreamRole::VideoRecording},
-      {"viewfinder", libcamera::StreamRole::Viewfinder},
-    };
-
-    try {
-      return roles_map.at(role);
-    }
-    catch (const std::out_of_range &) {
-      ROS_ERROR_STREAM("invalid stream role: \"" << role << "\"");
-      throw std::runtime_error("invalid stream role: \"" + role + "\"");
-    }
-  }
-
-  //}
 
   /* getParamCheck() method //{ */
   template <typename T>
@@ -178,15 +159,6 @@ namespace libcamera_ros
       ros::shutdown();
       return;
     }
-
-    //}
-
-    cinfo_ = std::make_shared<camera_info_manager::CameraInfoManager>(nh_, camera_name, calib_url);
-
-    /* initialize publishers //{ */
-
-    image_transport::ImageTransport it(nh_);
-    image_pub_ = it.advertiseCamera("image_raw", 5);
 
     //}
 
@@ -386,6 +358,15 @@ namespace libcamera_ros
       requests_.push_back(std::move(request));
     }
 
+    cinfo_ = std::make_shared<camera_info_manager::CameraInfoManager>(nh_, camera_name, calib_url);
+
+    /* initialize publishers //{ */
+
+    image_transport::ImageTransport it(nh_);
+    image_pub_ = it.advertiseCamera("image_raw", 5);
+
+    //}
+
     // register callback
     camera_->requestCompleted.connect(this, &LibcameraRos::requestComplete);
 
@@ -425,6 +406,7 @@ namespace libcamera_ros
   /* LibcameraRos::declareParameters() //{ */
   void LibcameraRos::declareParameters()
   {
+    ROS_INFO("Available controls:");
     for (const auto &[id, info] : camera_->controls()) {
       // store control id with name
       parameter_ids_[id->name()] = id;
@@ -451,6 +433,7 @@ namespace libcamera_ros
         ros::shutdown();
         return;
       }
+      ROS_INFO_STREAM("    " << cv_descr);
     }
 
   }
