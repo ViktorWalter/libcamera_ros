@@ -320,9 +320,12 @@ namespace libcamera_ros
     if (getOptionalParamCheck(nh_, "LibcameraRos", "control/exposure_time", param_int)){
       updateControlParameter(pv_to_cv(param_int, parameter_ids_["ExposureTime"]->type()), parameter_ids_["ExposureTime"]);
     }
-    /* updateControlParameter<std::vector<int>>(std::string("control/frame_duration_limits"), parameter_ids_["FrameDurationLimits"]); */
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/fps", param_int)){
+      int64_t frame_time = 1000000 / param_int;
+      updateControlParameter(pv_to_cv(std::vector<int64_t>{frame_time, frame_time}, parameter_ids_["FrameDurationLimits"]->type()), parameter_ids_["FrameDurationLimits"]);
+    }
     if (getOptionalParamCheck(nh_, "LibcameraRos", "control/ae_constraint_mode", param_string)){
-      updateControlParameter(pv_to_cv(get_exposure_mode(param_string), parameter_ids_["AeConstraintMode"]->type()), parameter_ids_["AeConstraintMode"]);
+      updateControlParameter(pv_to_cv(get_ae_constraint_mode(param_string), parameter_ids_["AeConstraintMode"]->type()), parameter_ids_["AeConstraintMode"]);
     }
     if (getOptionalParamCheck(nh_, "LibcameraRos", "control/brightness", param_float)){
       updateControlParameter(pv_to_cv(param_float, parameter_ids_["Brightness"]->type()), parameter_ids_["Brightness"]);
@@ -349,16 +352,16 @@ namespace libcamera_ros
     if (getOptionalParamCheck(nh_, "LibcameraRos", "control/analogue_gain", param_float)){
       updateControlParameter(pv_to_cv(param_float, parameter_ids_["AnalogueGain"]->type()), parameter_ids_["AnalogueGain"]);
     }
-    /* if (getOptionalParamCheck(nh_, "LibcameraRos", "control/awb_mode", param_string)){ */
-    /*   updateControlParameter(pv_to_cv(get_exposure_mode(param_string), parameter_ids_["AwbMode"]->type()), parameter_ids_["AwbMode"]); */
-    /* } */
-    /* if (getOptionalParamCheck(nh_, "LibcameraRos", "control/ae_metering_mode", param_string)){ */
-    /*   updateControlParameter(pv_to_cv(get_exposure_mode(param_string), parameter_ids_["AeMeteringMode"]->type()), parameter_ids_["AeMeteringMode"]); */
-    /* } */
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/awb_mode", param_string)){
+      updateControlParameter(pv_to_cv(get_awb_mode(param_string), parameter_ids_["AwbMode"]->type()), parameter_ids_["AwbMode"]);
+    }
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/ae_metering_mode", param_string)){
+      updateControlParameter(pv_to_cv(get_ae_metering_mode(param_string), parameter_ids_["AeMeteringMode"]->type()), parameter_ids_["AeMeteringMode"]);
+    }
     /* updateControlParameter<std::vector<int>>(std::string("control/scaler_crop"), parameter_ids_["ScalerCrop"]); */
-    /* if (getOptionalParamCheck(nh_, "LibcameraRos", "control/control", param_string)){ */
-    /*   updateControlParameter(pv_to_cv(get_exposure_mode(param_string), parameter_ids_["AeExposureMode"]->type()), parameter_ids_["AeExposureMode"]); */
-    /* } */
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/control", param_string)){
+      updateControlParameter(pv_to_cv(get_ae_exposure_mode(param_string), parameter_ids_["AeExposureMode"]->type()), parameter_ids_["AeExposureMode"]);
+    }
 
     // allocate stream buffers and create one request per buffer
     stream_ = scfg.stream();

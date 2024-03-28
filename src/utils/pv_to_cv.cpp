@@ -46,9 +46,8 @@ libcamera::ControlValue pv_to_cv(const std::string &parameter, const libcamera::
   return {parameter};
 }
 
-libcamera::ControlValue pv_to_cv(const std::vector<int> &parameter, const libcamera::ControlType &type){
-  return pv_to_cv_int_array(std::vector<int64_t>(
-        parameter.begin(), parameter.end()), type);
+libcamera::ControlValue pv_to_cv(const std::vector<int64_t> &parameter, const libcamera::ControlType &type){
+  return pv_to_cv_int_array(parameter, type);
 }
 
 libcamera::ControlValue pv_to_cv(const std::vector<double> &parameter, const libcamera::ControlType &type){
