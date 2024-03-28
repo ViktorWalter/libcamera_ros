@@ -485,7 +485,6 @@ namespace libcamera_ros
       if (nh_.getParam(param_name.c_str(), param_value)){
         ROS_INFO_STREAM("[LibcameraRos]: Loaded parameter '" << param_name.c_str() << "': " << param_value);
       }
-      return false;
 
       libcamera::ControlValue value = pv_to_cv(param_value, id->type());
 
