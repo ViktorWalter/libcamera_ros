@@ -296,11 +296,6 @@ namespace libcamera_ros
     }
     ROS_INFO_STREAM("camera \"" << camera_->id() << "\" configured with " << scfg.toString() << " stream");
     
-    ROS_INFO("Available controls:");
-    for (auto const &[id, info] : camera_->controls()){
-      ROS_INFO_STREAM("    " << id->name() << " : " << info.toString());
-    }
-
     declareParameters();
 
     // allocate stream buffers and create one request per buffer
@@ -417,7 +412,7 @@ namespace libcamera_ros
       }
       catch (const std::runtime_error &e) {
         // ignore
-        ROS_WARN_STREAM(e.what());
+        ROS_WARN_STREAM("    " << e.what());
         continue;
       }
 
@@ -433,7 +428,7 @@ namespace libcamera_ros
         ros::shutdown();
         return;
       }
-      ROS_INFO_STREAM("    " << cv_descr);
+      ROS_INFO_STREAM("    " << id->name() << " : " << cv_descr);
     }
 
   }
