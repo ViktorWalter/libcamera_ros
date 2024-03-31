@@ -47,6 +47,7 @@
 #include <libcamera_ros/utils/type_extent.h>
 #include <libcamera_ros/utils/types.h>
 #include <libcamera_ros/utils/pv_to_cv.h>
+#include <libcamera_ros/utils/is_vector.h>
 
 #include <ros/ros.h>
 #include <nodelet/nodelet.h>
@@ -316,6 +317,7 @@ namespace libcamera_ros
     float param_float;
     std::string param_string;
     bool param_bool;
+    std::vector<int> param_vector_int;
 
     if (getOptionalParamCheck(nh_, "LibcameraRos", "control/exposure_time", param_int)){
       updateControlParameter(pv_to_cv(param_int, parameter_ids_["ExposureTime"]->type()), parameter_ids_["ExposureTime"]);
@@ -358,7 +360,9 @@ namespace libcamera_ros
     if (getOptionalParamCheck(nh_, "LibcameraRos", "control/ae_metering_mode", param_string)){
       updateControlParameter(pv_to_cv(get_ae_metering_mode(param_string), parameter_ids_["AeMeteringMode"]->type()), parameter_ids_["AeMeteringMode"]);
     }
-    /* updateControlParameter<std::vector<int>>(std::string("control/scaler_crop"), parameter_ids_["ScalerCrop"]); */
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/scaler_crop", param_vector_int)){
+      updateControlParameter(pv_to_cv(std::vector<int64_t>{param_vector_int.begin(), param_vector_int.end()}, parameter_ids_["ScalerCrop"]->type()), parameter_ids_["ScalerCrop"]);
+    }
     if (getOptionalParamCheck(nh_, "LibcameraRos", "control/control", param_string)){
       updateControlParameter(pv_to_cv(get_ae_exposure_mode(param_string), parameter_ids_["AeExposureMode"]->type()), parameter_ids_["AeExposureMode"]);
     }

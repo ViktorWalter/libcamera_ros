@@ -16,8 +16,8 @@ resolution:
 ## --------------------------------------------------------------
 # documentation: https://libcamera.org/api-html/namespacelibcamera_1_1controls.html
 control:
-  fps: 30 # [Hz] Note: fps is set using frame_duration_limits parameter for the libcamera SDK
-  exposure_time: 20 # Exposure time (shutter speed) for the frame applied in the sensor device. This value is specified in micro-seconds.
+  fps: 30 # [Hz] Note: fps is set as 1000000/frame_duration_limits 
+  # exposure_time: 20 # Exposure time (shutter speed) for the frame applied in the sensor device. This value is specified in micro-seconds.
   # stats_output_enable - not supported by the current version of the libcamera SDK
   # noise_reduction_mode - not supported by the current version of the libcamera SDK
   # ae_constraint_mode: "normal" # [normal, highlight, shadows, custom]
@@ -35,5 +35,5 @@ control:
   # awb_mode: "auto" # [auto, incandescent, tungsten, fluorescent, indoor, daylight, cloudy, custom]
   # ae_flicker_period - not supported by the current version of the libcamera SDK
   # ae_metering_mode: "centre-weighted" # [centre-weighted, spot, matrix, custom]
-  # scaler_crop: "(0, 0)/1456x1088" # Sets the image portion that will be scaled to form the whole of the final output image.
+  scaler_crop: [0, 0, 1456, 1088] # Sets the image portion that will be scaled to form the whole of the final output image. (example of usage: [0, 0, 1456, 1088] is [(0, 0)/1456x1088])
   # ae_exposure_mode: "normal" # [normal, short, long, custom]
