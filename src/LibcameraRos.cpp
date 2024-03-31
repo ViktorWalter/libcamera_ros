@@ -39,11 +39,15 @@
 
 //}
 
-#include <libcamera_ros/utils/clamp.hpp>
-#include <libcamera_ros/utils/format_mapping.hpp>
-#include <libcamera_ros/utils/pretty_print.hpp>
-#include <libcamera_ros/utils/type_extent.hpp>
-#include <libcamera_ros/utils/types.hpp>
+#include <libcamera_ros/utils/clamp.h>
+#include <libcamera_ros/utils/format_mapping.h>
+#include <libcamera_ros/utils/stream_mapping.h>
+#include <libcamera_ros/utils/control_mapping.h>
+#include <libcamera_ros/utils/pretty_print.h>
+#include <libcamera_ros/utils/type_extent.h>
+#include <libcamera_ros/utils/types.h>
+#include <libcamera_ros/utils/pv_to_cv.h>
+#include <libcamera_ros/utils/is_vector.h>
 
 #include <ros/ros.h>
 #include <nodelet/nodelet.h>
@@ -57,30 +61,19 @@
 namespace libcamera_ros
 {
 
-  /* get_role() method //{ */
-  libcamera::StreamRole get_role(const std::string &role)
-  {
-    static const std::unordered_map<std::string, libcamera::StreamRole> roles_map = {
-      {"raw", libcamera::StreamRole::Raw},
-      {"still", libcamera::StreamRole::StillCapture},
-      {"video", libcamera::StreamRole::VideoRecording},
-      {"viewfinder", libcamera::StreamRole::Viewfinder},
-    };
-
-    try {
-      return roles_map.at(role);
-    }
-    catch (const std::out_of_range &) {
-      ROS_ERROR_STREAM("invalid stream role: \"" << role << "\"");
-      throw std::runtime_error("invalid stream role: \"" + role + "\"");
-    }
-  }
-
-  //}
-
-  /* getParamCheck() method //{ */
+  /* ParamCheck() method //{ */
   template <typename T>
-    bool getParamCheck(const ros::NodeHandle& nh, const std::string& node_name, const std::string& param_name, T& param_out)
+    bool getOptionalParamCheck(const ros::NodeHandle& nh, const std::string& node_name, const std::string& param_name, T& param_out)
+    {
+      if (!nh.getParam(param_name, param_out)){
+        return false;
+      }
+      ROS_INFO_STREAM("[" << node_name << "]: Loaded parameter '" << param_name << "': " << param_out);
+      return true;
+    }
+
+  template <typename T>
+    bool getCompulsoryParamCheck(const ros::NodeHandle& nh, const std::string& node_name, const std::string& param_name, T& param_out)
     {
       const bool res = nh.getParam(param_name, param_out);
       if (!res)
@@ -91,7 +84,7 @@ namespace libcamera_ros
     }
 
   template <typename T>
-    bool getParamCheck(const ros::NodeHandle& nh, const std::string& node_name, const std::string& param_name, T& param_out, const T& param_default)
+    bool getCompulsoryParamCheck(const ros::NodeHandle& nh, const std::string& node_name, const std::string& param_name, T& param_out, const T& param_default)
     {
       const bool res = nh.getParam(param_name, param_out);
       if (!res)
@@ -133,7 +126,15 @@ namespace libcamera_ros
       image_transport::CameraPublisher image_pub_;
       std::mutex image_pub_mutex_;
 
+      // map parameter names to libcamera control id
+      std::unordered_map<std::string, const libcamera::ControlId *> parameter_ids_;
+      // parameters that are to be set for every request
+      std::unordered_map<unsigned int, libcamera::ControlValue> parameters_;
+
+      void declareControlParameters();
       void requestComplete(libcamera::Request *request);
+
+      bool updateControlParameter(const libcamera::ControlValue &value, const libcamera::ControlId *id);
   };
 
   //}
@@ -151,21 +152,21 @@ namespace libcamera_ros
 
     bool success = true;
     std::string camera_name;
-    std::string camera_role;
-    std::string camera_format;
+    std::string stream_role;
+    std::string pixel_format;
     std::string calib_url;
     int camera_id;
-    int width;
-    int height;
+    int resolution_width;
+    int resolution_height;
 
-    success = success && getParamCheck(nh_, "LibcameraRos", "camera_name", camera_name);
-    success = success && getParamCheck(nh_, "LibcameraRos", "camera_id", camera_id);
-    success = success && getParamCheck(nh_, "LibcameraRos", "camera_role", camera_role);
-    success = success && getParamCheck(nh_, "LibcameraRos", "camera_format", camera_format);
-    success = success && getParamCheck(nh_, "LibcameraRos", "frame_id", frame_id_);
-    success = success && getParamCheck(nh_, "LibcameraRos", "calib_url", calib_url);
-    success = success && getParamCheck(nh_, "LibcameraRos", "width", width);
-    success = success && getParamCheck(nh_, "LibcameraRos", "height", height);
+    success = success && getCompulsoryParamCheck(nh_, "LibcameraRos", "camera_name", camera_name);
+    success = success && getCompulsoryParamCheck(nh_, "LibcameraRos", "camera_id", camera_id);
+    success = success && getCompulsoryParamCheck(nh_, "LibcameraRos", "stream_role", stream_role);
+    success = success && getCompulsoryParamCheck(nh_, "LibcameraRos", "pixel_format", pixel_format);
+    success = success && getCompulsoryParamCheck(nh_, "LibcameraRos", "frame_id", frame_id_);
+    success = success && getCompulsoryParamCheck(nh_, "LibcameraRos", "calib_url", calib_url);
+    success = success && getCompulsoryParamCheck(nh_, "LibcameraRos", "resolution/width", resolution_width);
+    success = success && getCompulsoryParamCheck(nh_, "LibcameraRos", "resolution/height", resolution_height);
 
     if (!success)
     {
@@ -173,15 +174,6 @@ namespace libcamera_ros
       ros::shutdown();
       return;
     }
-
-    //}
-
-    cinfo_ = std::make_shared<camera_info_manager::CameraInfoManager>(nh_, camera_name, calib_url);
-
-    /* initialize publishers //{ */
-
-    image_transport::ImageTransport it(nh_);
-    image_pub_ = it.advertiseCamera("image_raw", 5);
 
     //}
 
@@ -221,7 +213,7 @@ namespace libcamera_ros
 
     // configure camera stream
     std::unique_ptr<libcamera::CameraConfiguration> cfg =
-      camera_->generateConfiguration({get_role(camera_role)});
+      camera_->generateConfiguration({get_role(stream_role)});
 
     if (!cfg){
       ROS_ERROR("failed to generate configuration");
@@ -233,7 +225,7 @@ namespace libcamera_ros
     // store full list of stream formats
     const libcamera::StreamFormats &stream_formats = scfg.formats();
     const std::vector<libcamera::PixelFormat> &pixel_formats = scfg.formats().pixelformats();
-    const std::string format = camera_format;
+    const std::string format = pixel_format;
     if (format.empty()) {
       ROS_INFO_STREAM(stream_formats);
       // check if the default pixel format is supported
@@ -280,7 +272,7 @@ namespace libcamera_ros
       scfg.pixelFormat = format_requested;
     }
 
-    const libcamera::Size size(width, height);
+    const libcamera::Size size(resolution_width, resolution_height);
     if (size.isNull()) {
       ROS_INFO_STREAM(scfg);
       scfg.size = scfg.formats().sizes(scfg.pixelFormat).back();
@@ -306,7 +298,7 @@ namespace libcamera_ros
             << "\"");
         break;
       case libcamera::CameraConfiguration::Invalid:
-        ROS_ERROR("failed to valid stream configurations");
+        ROS_ERROR("failed to valid stream configuration");
         ros::shutdown();
         return;
         break;
@@ -317,8 +309,63 @@ namespace libcamera_ros
       ros::shutdown();
       return;
     }
-
     ROS_INFO_STREAM("camera \"" << camera_->id() << "\" configured with " << scfg.toString() << " stream");
+
+    declareControlParameters();
+
+    int param_int;
+    float param_float;
+    std::string param_string;
+    bool param_bool;
+    std::vector<int> param_vector_int;
+
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/exposure_time", param_int)){
+      updateControlParameter(pv_to_cv(param_int, parameter_ids_["ExposureTime"]->type()), parameter_ids_["ExposureTime"]);
+    }
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/fps", param_int)){
+      int64_t frame_time = 1000000 / param_int;
+      updateControlParameter(pv_to_cv(std::vector<int64_t>{frame_time, frame_time}, parameter_ids_["FrameDurationLimits"]->type()), parameter_ids_["FrameDurationLimits"]);
+    }
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/ae_constraint_mode", param_string)){
+      updateControlParameter(pv_to_cv(get_ae_constraint_mode(param_string), parameter_ids_["AeConstraintMode"]->type()), parameter_ids_["AeConstraintMode"]);
+    }
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/brightness", param_float)){
+      updateControlParameter(pv_to_cv(param_float, parameter_ids_["Brightness"]->type()), parameter_ids_["Brightness"]);
+    }
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/sharpness", param_float)){
+      updateControlParameter(pv_to_cv(param_float, parameter_ids_["Sharpness"]->type()), parameter_ids_["Sharpness"]);
+    }
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/awb_enable", param_bool)){
+      updateControlParameter(pv_to_cv(param_bool, parameter_ids_["AwbEnable"]->type()), parameter_ids_["AwbEnable"]);
+    }
+    /* updateControlParameter<std::vector<float>>(std::string("control/colour_gains"), parameter_ids_["ColourGains"]); */
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/ae_enable", param_bool)){
+      updateControlParameter(pv_to_cv(param_bool, parameter_ids_["AeEnable"]->type()), parameter_ids_["AeEnable"]);
+    }
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/saturation", param_float)){
+      updateControlParameter(pv_to_cv(param_float, parameter_ids_["Saturation"]->type()), parameter_ids_["Saturation"]);
+    }
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/contrast", param_float)){
+      updateControlParameter(pv_to_cv(param_float, parameter_ids_["Contrast"]->type()), parameter_ids_["Contrast"]);
+    }
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/exposure_value", param_float)){
+      updateControlParameter(pv_to_cv(param_float, parameter_ids_["ExposureValue"]->type()), parameter_ids_["ExposureValue"]);
+    }
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/analogue_gain", param_float)){
+      updateControlParameter(pv_to_cv(param_float, parameter_ids_["AnalogueGain"]->type()), parameter_ids_["AnalogueGain"]);
+    }
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/awb_mode", param_string)){
+      updateControlParameter(pv_to_cv(get_awb_mode(param_string), parameter_ids_["AwbMode"]->type()), parameter_ids_["AwbMode"]);
+    }
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/ae_metering_mode", param_string)){
+      updateControlParameter(pv_to_cv(get_ae_metering_mode(param_string), parameter_ids_["AeMeteringMode"]->type()), parameter_ids_["AeMeteringMode"]);
+    }
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/scaler_crop", param_vector_int)){
+      updateControlParameter(pv_to_cv(std::vector<int64_t>{param_vector_int.begin(), param_vector_int.end()}, parameter_ids_["ScalerCrop"]->type()), parameter_ids_["ScalerCrop"]);
+    }
+    if (getOptionalParamCheck(nh_, "LibcameraRos", "control/control", param_string)){
+      updateControlParameter(pv_to_cv(get_ae_exposure_mode(param_string), parameter_ids_["AeExposureMode"]->type()), parameter_ids_["AeExposureMode"]);
+    }
 
     // allocate stream buffers and create one request per buffer
     stream_ = scfg.stream();
@@ -372,8 +419,23 @@ namespace libcamera_ros
         ros::shutdown();
         return;
       }
+
+      // set modified control parameters
+      for (const auto &[id, value] : parameters_){
+        request->controls().set(id, value);
+      }
+
       requests_.push_back(std::move(request));
     }
+
+    cinfo_ = std::make_shared<camera_info_manager::CameraInfoManager>(nh_, camera_name, calib_url);
+
+    /* initialize publishers //{ */
+
+    image_transport::ImageTransport it(nh_);
+    image_pub_ = it.advertiseCamera("image_raw", 5);
+
+    //}
 
     // register callback
     camera_->requestCompleted.connect(this, &LibcameraRos::requestComplete);
@@ -391,6 +453,7 @@ namespace libcamera_ros
     // | --------------------- finish the init -------------------- |
 
     ROS_INFO("[LibcameraRos]: initialized");
+    ROS_INFO("-----------------------------");
   }
   //}
 
@@ -409,6 +472,71 @@ namespace libcamera_ros
       if (munmap(e.second.data, e.second.size) == -1)
         std::cerr << "munmap failed: " << std::strerror(errno) << std::endl;
   }
+  //}
+
+  /* LibcameraRos::declareControlParameters() //{ */
+  void LibcameraRos::declareControlParameters()
+  {
+    ROS_INFO("Available control parameters:");
+    for (const auto &[id, info] : camera_->controls()) {
+      std::size_t extent;
+      try {
+        extent = get_extent(id);
+      }
+      catch (const std::runtime_error &e) {
+        // ignore
+        ROS_WARN_STREAM("    " << id->name() << " : Not handled by the current version of the libcamera SDK");
+        continue;
+      }
+
+      // store control id with name
+      parameter_ids_[id->name()] = id;
+
+      if (info.min().numElements() != info.max().numElements()){
+        ROS_ERROR("minimum and maximum parameter array sizes do not match");
+        ros::shutdown();
+        return;
+      }
+      ROS_INFO_STREAM("    " << id->name() << " : " << info.toString() << (info.def().isNone() ? "" : " (default: {" + info.def().toString() + "})"));
+    }
+
+  }
+  //}
+
+  /* LibcameraRos::updateControlParameter() //{ */
+    bool LibcameraRos::updateControlParameter(const libcamera::ControlValue & value, const libcamera::ControlId *id){
+
+      if (value.isNone()) {
+        ROS_ERROR_STREAM(id->name().c_str() << " : parameter type not defined");
+        return false;
+      }
+      // verify parameter type and dimension against default
+      const libcamera::ControlInfo &ci = camera_->controls().at(id);
+
+      if (value.type() != id->type()) {
+        ROS_ERROR_STREAM(id->name().c_str() << " : parameter types mismatch, expected '" <<
+            std::to_string(id->type()).c_str() << "', got '" << std::to_string(value.type()).c_str() <<
+            "'");
+        return false;
+      }
+
+      const std::size_t extent = get_extent(id);
+      if ((value.isArray() && (extent > 0)) && value.numElements() != extent) {
+        ROS_ERROR_STREAM(id->name().c_str() << " : parameter dimensions mismatch, expected " <<
+            std::to_string(extent).c_str() << ", got " << std::to_string(value.numElements()).c_str());
+        return false;
+      }
+
+      // check bounds and return error
+      if (value < ci.min() || value > ci.max()) {
+        ROS_ERROR_STREAM(id->name().c_str() << " : parameter value " << value.toString().c_str() << 
+            " outside of range: " << ci.toString().c_str());
+        return false;
+      }
+
+      parameters_[id->id()] = value;
+      return true;
+    }
   //}
 
   /* LibcameraRos::requestComplete() //{ */

@@ -1,7 +1,6 @@
 #pragma once
-#include "types.hpp"
+#include "types.h"
 #include <libcamera/controls.h>
-
 
 template<enum libcamera::ControlType T>
 typename ControlTypeMap<T>::type

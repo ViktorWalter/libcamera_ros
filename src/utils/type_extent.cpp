@@ -1,4 +1,4 @@
-#include <libcamera_ros/utils/type_extent.hpp>
+#include <libcamera_ros/utils/type_extent.h>
 #include <libcamera/base/span.h>
 #include <libcamera/control_ids.h>
 #include <libcamera/controls.h>
@@ -37,6 +37,9 @@ get_extent(const libcamera::ControlId *id)
   IF(ExposureValue)
   IF(ExposureTime)
   IF(AnalogueGain)
+  /* IF(AeFlickerMode) */
+  /* IF(AeFlickerPeriod) */
+  /* IF(AeFlickerDetected) */
   IF(Brightness)
   IF(Contrast)
   IF(Lux)
@@ -54,6 +57,7 @@ get_extent(const libcamera::ControlId *id)
   IF(DigitalGain)
   IF(FrameDuration)
   IF(FrameDurationLimits)
+  /* IF(SensorTemperature) */
   IF(SensorTimestamp)
   IF(AfMode)
   IF(AfRange)
@@ -65,6 +69,8 @@ get_extent(const libcamera::ControlId *id)
   IF(LensPosition)
   IF(AfState)
   IF(AfPauseState)
+  /* IF(HdrMode) */
+  /* IF(HdrChannel) */
 
   throw std::runtime_error("control " + id->name() + " (" + std::to_string(id->id()) +
                            ") not handled");

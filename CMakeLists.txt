@@ -39,9 +39,12 @@ add_library(LibcameraRos
   src/LibcameraRos.cpp
   src/utils/clamp.cpp
   src/utils/format_mapping.cpp
+  src/utils/stream_mapping.cpp
+  src/utils/control_mapping.cpp
   src/utils/pretty_print.cpp
   src/utils/types.cpp
   src/utils/type_extent.cpp
+  src/utils/pv_to_cv.cpp
 )
 
 
@@ -59,7 +62,7 @@ install(TARGETS ${LIBRARIES}
   RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
   )
 
-install(DIRECTORY launch
+install(DIRECTORY launch config
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
   )
 
