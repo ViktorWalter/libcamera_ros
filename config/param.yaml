@@ -35,5 +35,5 @@ control:
   # awb_mode: "auto" # [auto, incandescent, tungsten, fluorescent, indoor, daylight, cloudy, custom]
   # ae_flicker_period - not supported by the current version of the libcamera SDK
   # ae_metering_mode: "centre-weighted" # [centre-weighted, spot, matrix, custom]
-  scaler_crop: [0, 0, 1456, 1088] # Sets the image portion that will be scaled to form the whole of the final output image. (example of usage: [0, 0, 1456, 1088] is [(0, 0)/1456x1088])
+  # scaler_crop: [0, 0, 1456, 1088] # Sets the image portion that will be scaled to form the whole of the final output image. (example of usage: [0, 0, 1456, 1088] is [(0, 0)/1456x1088])
   # ae_exposure_mode: "normal" # [normal, short, long, custom]
