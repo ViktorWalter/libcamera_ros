@@ -528,7 +528,9 @@ namespace libcamera_ros
       }
 
       // check bounds and return error
-      if (value < ci.min() || value > ci.max()) {
+      // it seems that for exposition the 0 is used for maximum value, which means infinity
+      // therefore, we are checking if max > min. If yes, check  if the value is lower than max.  
+      if (value < ci.min() || (ci.max() > ci.min() ? value > ci.max() : false)) {
         ROS_ERROR_STREAM(id->name().c_str() << " : parameter value " << value.toString().c_str() << 
             " outside of range: " << ci.toString().c_str());
         return false;
